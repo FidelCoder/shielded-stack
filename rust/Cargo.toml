@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/bench",
+    "crates/lwd-client",
+    "crates/ssctl",
+]
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/FidelCoder/shielded-stack"
+

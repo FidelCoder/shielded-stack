@@ -1,0 +1,11 @@
+services:
+  lwd-exporter:
+    build:
+      context: ../..
+      dockerfile: deploy/docker-compose/lwd-exporter.Dockerfile
+    environment:
+      SHIELDED_STACK_ADDR: ":9467"
+      SHIELDED_STACK_ENDPOINTS: "https://localhost:9067"
+    ports:
+      - "9467:9467"
+

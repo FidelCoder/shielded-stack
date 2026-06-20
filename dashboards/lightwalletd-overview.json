@@ -1,0 +1,39 @@
+{
+  "title": "Lightwalletd Overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Reachable Endpoints",
+      "targets": [
+        {
+          "expr": "sum(shielded_stack_endpoint_reachable)"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Endpoint Latency",
+      "targets": [
+        {
+          "expr": "shielded_stack_endpoint_latency_seconds"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 0
+      }
+    }
+  ]
+}
+

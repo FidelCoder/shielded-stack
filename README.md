@@ -1,0 +1,51 @@
+# shielded-stack
+
+Infrastructure tooling for operating reliable Zcash light client services.
+
+This repository contains the software side of the stack:
+
+- Rust command-line tooling for endpoint checks, registry validation, and benchmarks.
+- Go services for long-running probes and Prometheus-compatible health endpoints.
+- Deployment examples for local, Kubernetes, and Helm-based environments.
+- Dashboards and operational docs for service reliability.
+
+## Repository Layout
+
+```text
+rust/
+  crates/
+    ssctl/       Command-line entrypoint.
+    lwd-client/  Lightwalletd client primitives.
+    bench/       Endpoint benchmark primitives.
+go/
+  cmd/
+    lwd-exporter/  HTTP health and metrics service.
+  internal/
+    probe/         Endpoint probing package.
+deploy/
+  docker-compose/ Local deployment examples.
+  k8s/            Kubernetes manifests.
+  helm/           Helm chart.
+dashboards/       Grafana dashboard definitions.
+docs/             Architecture and operator notes.
+```
+
+## Development
+
+```sh
+make test
+make build
+```
+
+## References
+
+- Zcash light client support: https://zcash.readthedocs.io/en/latest/rtd_pages/lightclient_support.html
+- Lightwalletd setup: https://zcash.readthedocs.io/en/latest/rtd_pages/lightwalletd.html
+- Lightwalletd repository: https://github.com/zcash/lightwalletd
+- Light wallet protocol protobufs: https://github.com/zcash/lightwallet-protocol
+- ZIP 307: https://zips.z.cash/zip-0307
+
+
+## Work Tracking
+
+See [ROADMAP.md](ROADMAP.md) for completed setup work and next implementation tasks.
