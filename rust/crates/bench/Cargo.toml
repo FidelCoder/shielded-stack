@@ -7,7 +7,7 @@ repository.workspace = true
 
 [dependencies]
 lwd-client = { path = "../lwd-client" }
+serde = { version = "1", features = ["derive"] }
 
 [lib]
 path = "src/lib.rs"
-

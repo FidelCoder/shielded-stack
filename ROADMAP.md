@@ -16,14 +16,18 @@ This file tracks what has been completed and what remains for the core tooling r
 - Added a Grafana dashboard definition.
 - Added architecture and lightwalletd reference docs.
 - Added GitHub Actions workflow for Rust and Go checks.
+- Added real `lightwalletd` gRPC probing through `GetLightdInfo`.
+- Added endpoint registry parsing and validation.
+- Added registry-wide active endpoint probes.
+- Added repeated endpoint benchmark summaries.
+- Added JSON and human-readable CLI output.
 
 ## Next
 
-- Generate Rust and Go clients from the official light wallet protobufs.
-- Replace placeholder HTTP probing with real lightwalletd gRPC checks.
-- Add block-height, latency, and error-rate metrics.
-- Add endpoint registry validation against the operations repository format.
-- Add benchmark commands for repeated endpoint checks.
+- Generate Rust and Go clients directly from the official protobufs.
+- Add Go gRPC probing to `lwd-exporter`.
+- Add Prometheus metrics for block height, height lag, latency, and probe failures.
+- Add endpoint registry validation against stricter schema rules.
 - Add release builds for `ssctl` and `lwd-exporter`.
 - Add container publishing workflow.
 - Expand dashboard panels for height lag, probe failures, and latency percentiles.

@@ -11,6 +11,16 @@
 - ZIP 307: https://zips.z.cash/zip-0307
 - Wallet threat model: https://zcash.readthedocs.io/en/latest/rtd_pages/wallet_threat_model.html
 
+## MVP Probe
+
+The first supported runtime check calls:
+
+```text
+/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLightdInfo
+```
+
+The response is used to report block height, chain name, version, vendor, and latency.
+
 ## Local Operator Checklist
 
 - Confirm the backing `zcashd` node is synced.
@@ -18,4 +28,3 @@
 - Probe the public endpoint from outside the host network.
 - Monitor endpoint latency and error rates.
 - Keep endpoint metadata current in the operations repository.
-
