@@ -6,13 +6,13 @@ This repository contains the software side of the stack:
 
 - Rust command-line tooling for endpoint checks, registry validation, and benchmarks.
 - Generated Rust gRPC bindings from the official Zcash light wallet protobufs.
-- Go services for long-running probes and Prometheus-compatible health endpoints.
+- Go services for long-running lightwalletd gRPC probes and Prometheus-compatible health endpoints.
 - Deployment examples for local, Kubernetes, and Helm-based environments.
 - Dashboards and operational docs for service reliability.
 
 ## MVP Features
 
-- Probe a `lightwalletd` endpoint through the real gRPC `GetLightdInfo` method.
+- Probe a `lightwalletd` endpoint through the real gRPC `GetLightdInfo` method from Rust and Go.
 - Report reachability, block height, latency, vendor, version, and chain name.
 - Validate endpoint registry YAML files from the operations repository.
 - Probe all active endpoints in a registry file.
@@ -28,7 +28,7 @@ rust/
     bench/       Repeated probe benchmark primitives.
 go/
   cmd/
-    lwd-exporter/  HTTP health and metrics service.
+    lwd-exporter/  HTTP service that probes lightwalletd over gRPC and exposes metrics.
   internal/
     probe/         Endpoint probing package.
 deploy/
@@ -79,7 +79,7 @@ make test
 make build
 ```
 
-`go test ./go/...` requires a local Go toolchain.
+`go test ./go/...` requires a local Go toolchain. The exporter uses vendored generated protocol bindings under `go/walletrpc`.
 
 ## Work Tracking
 

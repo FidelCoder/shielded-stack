@@ -2,7 +2,7 @@
   "title": "Lightwalletd Overview",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "panels": [
     {
       "type": "stat",
@@ -14,8 +14,23 @@
       ],
       "gridPos": {
         "h": 6,
-        "w": 8,
+        "w": 6,
         "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Max Height Lag",
+      "targets": [
+        {
+          "expr": "max(shielded_stack_endpoint_height_lag)"
+        }
+      ],
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
         "y": 0
       }
     },
@@ -29,11 +44,28 @@
       ],
       "gridPos": {
         "h": 8,
-        "w": 16,
-        "x": 8,
+        "w": 12,
+        "x": 12,
         "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Reported Block Height",
+      "targets": [
+        {
+          "expr": "shielded_stack_endpoint_block_height"
+        },
+        {
+          "expr": "shielded_stack_endpoint_estimated_height"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
       }
     }
   ]
 }
-

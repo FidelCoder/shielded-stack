@@ -23,12 +23,15 @@ This file tracks what has been completed and what remains for the core tooling r
 - Added JSON and human-readable CLI output.
 - Added vendored light wallet protobuf files.
 - Switched Rust gRPC calls to generated `tonic` client code.
+- Added generated Go light wallet protocol bindings.
+- Switched `lwd-exporter` to gRPC `GetLightdInfo` probes.
+- Added exporter metrics for reported height, estimated height, height lag, reachability, and latency.
 
 ## Next
 
-- Generate Go clients directly from the official protobufs.
+- Add generated Go light wallet protocol bindings.
 - Add Go gRPC probing to `lwd-exporter`.
-- Add Prometheus metrics for block height, height lag, latency, and probe failures.
+- Add Prometheus metrics for block height, height lag, and latency.
 - Add endpoint registry validation against stricter schema rules.
 - Add release builds for `ssctl` and `lwd-exporter`.
 - Add container publishing workflow.

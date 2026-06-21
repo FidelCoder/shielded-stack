@@ -7,7 +7,7 @@ Shielded Stack is split into short-lived tooling and long-running services.
 - `ssctl`: a Rust CLI for endpoint health checks, registry validation, and benchmarks.
 - `lwd-client`: Rust primitives for endpoint metadata, registry parsing, and generated `lightwalletd` gRPC probes.
 - `bench`: Rust benchmark primitives for repeated endpoint probes.
-- `lwd-exporter`: a Go HTTP service that exposes health probes and Prometheus metrics.
+- `lwd-exporter`: a Go HTTP service that probes `lightwalletd` over gRPC and exposes Prometheus metrics.
 
 ## MVP Data Flow
 

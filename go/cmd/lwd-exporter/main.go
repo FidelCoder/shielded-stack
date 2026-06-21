@@ -15,7 +15,7 @@ import (
 
 func main() {
 	endpoints := readEndpoints()
-	prober := probe.NewHTTPProber(10 * time.Second)
+	prober := probe.NewLWDProber(10 * time.Second)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -69,20 +69,27 @@ func writeJSON(w http.ResponseWriter, value any) {
 	}
 }
 
-func writeMetrics(ctx context.Context, w http.ResponseWriter, prober probe.HTTPProber, endpoints []string) {
+func writeMetrics(ctx context.Context, w http.ResponseWriter, prober probe.LWDProber, endpoints []string) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 
+	fmt.Fprintln(w, "# HELP shielded_stack_configured_endpoints Number of configured endpoints.")
+	fmt.Fprintln(w, "# TYPE shielded_stack_configured_endpoints gauge")
+	fmt.Fprintf(w, "shielded_stack_configured_endpoints %d\n", len(endpoints))
+
 	if len(endpoints) == 0 {
-		fmt.Fprintln(w, "# HELP shielded_stack_configured_endpoints Number of configured endpoints.")
-		fmt.Fprintln(w, "# TYPE shielded_stack_configured_endpoints gauge")
-		fmt.Fprintln(w, "shielded_stack_configured_endpoints 0")
 		return
 	}
 
-	fmt.Fprintln(w, "# HELP shielded_stack_endpoint_reachable Whether the endpoint probe succeeded.")
+	fmt.Fprintln(w, "# HELP shielded_stack_endpoint_reachable Whether the lightwalletd gRPC probe succeeded.")
 	fmt.Fprintln(w, "# TYPE shielded_stack_endpoint_reachable gauge")
-	fmt.Fprintln(w, "# HELP shielded_stack_endpoint_latency_seconds Endpoint probe latency in seconds.")
+	fmt.Fprintln(w, "# HELP shielded_stack_endpoint_latency_seconds Endpoint gRPC probe latency in seconds.")
 	fmt.Fprintln(w, "# TYPE shielded_stack_endpoint_latency_seconds gauge")
+	fmt.Fprintln(w, "# HELP shielded_stack_endpoint_block_height Latest block height reported by lightwalletd.")
+	fmt.Fprintln(w, "# TYPE shielded_stack_endpoint_block_height gauge")
+	fmt.Fprintln(w, "# HELP shielded_stack_endpoint_estimated_height Estimated block height reported by lightwalletd.")
+	fmt.Fprintln(w, "# TYPE shielded_stack_endpoint_estimated_height gauge")
+	fmt.Fprintln(w, "# HELP shielded_stack_endpoint_height_lag Estimated height minus reported block height.")
+	fmt.Fprintln(w, "# TYPE shielded_stack_endpoint_height_lag gauge")
 
 	for _, endpoint := range endpoints {
 		result := prober.Probe(ctx, endpoint)
@@ -91,8 +98,16 @@ func writeMetrics(ctx context.Context, w http.ResponseWriter, prober probe.HTTPP
 			reachable = 1
 		}
 
+		heightLag := int64(result.EstimatedBlockHeight) - int64(result.LatestBlockHeight)
+		if heightLag < 0 {
+			heightLag = 0
+		}
+
 		fmt.Fprintf(w, "shielded_stack_endpoint_reachable{endpoint=%q} %d\n", endpoint, reachable)
 		fmt.Fprintf(w, "shielded_stack_endpoint_latency_seconds{endpoint=%q} %.6f\n", endpoint, result.Latency.Seconds())
+		fmt.Fprintf(w, "shielded_stack_endpoint_block_height{endpoint=%q} %d\n", endpoint, result.LatestBlockHeight)
+		fmt.Fprintf(w, "shielded_stack_endpoint_estimated_height{endpoint=%q} %d\n", endpoint, result.EstimatedBlockHeight)
+		fmt.Fprintf(w, "shielded_stack_endpoint_height_lag{endpoint=%q} %d\n", endpoint, heightLag)
 	}
 }
 
@@ -104,4 +119,3 @@ func envOrDefault(name, fallback string) string {
 
 	return value
 }
-
