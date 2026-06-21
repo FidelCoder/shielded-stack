@@ -92,6 +92,7 @@ See [ROADMAP.md](ROADMAP.md) for completed setup work and next implementation ta
 - Releases: [docs/releases.md](docs/releases.md)
 - Containers: [docs/containers.md](docs/containers.md)
 - Dashboards: [docs/dashboards.md](docs/dashboards.md)
+- Status updates: [docs/status-updates.md](docs/status-updates.md)
 - Zcash light client support: https://zcash.readthedocs.io/en/latest/rtd_pages/lightclient_support.html
 - Lightwalletd setup: https://zcash.readthedocs.io/en/latest/rtd_pages/lightwalletd.html
 - Lightwalletd repository: https://github.com/zcash/lightwalletd

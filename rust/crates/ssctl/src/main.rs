@@ -1,14 +1,49 @@
 use std::fs;
 use std::process::ExitCode;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bench::{run_benchmark, BenchmarkPlan};
-use lwd_client::{probe_or_report, Endpoint, EndpointRegistry, Network, ProbeOptions};
+use lwd_client::{
+    probe_or_report, Endpoint, EndpointRegistry, EndpointStatus, Network, ProbeOptions,
+};
+use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OutputFormat {
     Human,
     Json,
+}
+
+#[derive(Debug, Serialize)]
+struct StatusDocument {
+    updated_at: String,
+    summary: StatusSummary,
+    services: Vec<ServiceStatus>,
+}
+
+#[derive(Debug, Serialize)]
+struct StatusSummary {
+    total_services: usize,
+    reachable_services: usize,
+    degraded_services: usize,
+    unreachable_services: usize,
+}
+
+#[derive(Debug, Serialize)]
+struct ServiceStatus {
+    id: String,
+    network: Network,
+    url: String,
+    status: EndpointStatus,
+    region: String,
+    operator: String,
+    reachable: bool,
+    latest_block_height: Option<u64>,
+    estimated_block_height: Option<u64>,
+    height_lag: Option<u64>,
+    latency_ms: u128,
+    checked_at_unix: u64,
+    message: String,
 }
 
 #[tokio::main]
@@ -212,6 +247,7 @@ async fn registry_command(args: &[String]) -> ExitCode {
     match subcommand.as_str() {
         "validate" => registry_validate_command(&args[1..]),
         "probe" => registry_probe_command(&args[1..]).await,
+        "status" => registry_status_command(&args[1..]).await,
         other => {
             eprintln!("unknown registry subcommand: {other}");
             print_help();
@@ -310,6 +346,163 @@ async fn registry_probe_command(args: &[String]) -> ExitCode {
     }
 }
 
+async fn registry_status_command(args: &[String]) -> ExitCode {
+    let mut timeout = Duration::from_secs(10);
+    let mut output_path = None;
+    let mut registry_paths = Vec::new();
+
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--timeout-seconds" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    eprintln!("missing value for --timeout-seconds");
+                    return ExitCode::FAILURE;
+                };
+                timeout = match parse_duration(value) {
+                    Ok(timeout) => timeout,
+                    Err(message) => {
+                        eprintln!("{message}");
+                        return ExitCode::FAILURE;
+                    }
+                };
+            }
+            "--output" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    eprintln!("missing value for --output");
+                    return ExitCode::FAILURE;
+                };
+                output_path = Some(value.to_string());
+            }
+            value if value.starts_with('-') => {
+                eprintln!("unknown option: {value}");
+                return ExitCode::FAILURE;
+            }
+            value => registry_paths.push(value.to_string()),
+        }
+        index += 1;
+    }
+
+    if registry_paths.is_empty() {
+        eprintln!("missing registry path");
+        return ExitCode::FAILURE;
+    }
+
+    let mut registries = Vec::new();
+    for path in &registry_paths {
+        match load_registry(path) {
+            Ok(registry) => registries.push(registry),
+            Err(message) => {
+                eprintln!("{message}");
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
+    let document = build_status_document(&registries, timeout).await;
+    let output = match serde_json::to_string_pretty(&document) {
+        Ok(output) => format!("{output}\n"),
+        Err(err) => {
+            eprintln!("failed to serialize status JSON: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    if let Some(path) = output_path {
+        if let Err(err) = fs::write(&path, output) {
+            eprintln!("failed to write {path}: {err}");
+            return ExitCode::FAILURE;
+        }
+        println!("wrote={path}");
+    } else {
+        print!("{output}");
+    }
+
+    ExitCode::SUCCESS
+}
+
+async fn build_status_document(
+    registries: &[EndpointRegistry],
+    timeout: Duration,
+) -> StatusDocument {
+    let mut services = Vec::new();
+
+    for registry in registries {
+        for record in &registry.endpoints {
+            let report = if record.status == EndpointStatus::Active {
+                Some(
+                    probe_or_report(
+                        Endpoint::new(registry.network, record.url.clone()),
+                        ProbeOptions { timeout },
+                    )
+                    .await,
+                )
+            } else {
+                None
+            };
+
+            let height_lag = report.as_ref().and_then(|report| {
+                match (report.latest_block_height, report.estimated_block_height) {
+                    (Some(latest), Some(estimated)) => Some(estimated.saturating_sub(latest)),
+                    _ => None,
+                }
+            });
+
+            services.push(ServiceStatus {
+                id: record.id.clone(),
+                network: registry.network,
+                url: record.url.clone(),
+                status: record.status,
+                region: record.region.clone(),
+                operator: record.operator.clone(),
+                reachable: report
+                    .as_ref()
+                    .map(|report| report.reachable)
+                    .unwrap_or(false),
+                latest_block_height: report
+                    .as_ref()
+                    .and_then(|report| report.latest_block_height),
+                estimated_block_height: report
+                    .as_ref()
+                    .and_then(|report| report.estimated_block_height),
+                height_lag,
+                latency_ms: report.as_ref().map(|report| report.latency_ms).unwrap_or(0),
+                checked_at_unix: report
+                    .as_ref()
+                    .map(|report| report.checked_at_unix)
+                    .unwrap_or_else(unix_time),
+                message: report
+                    .map(|report| report.message)
+                    .unwrap_or_else(|| "not active".to_string()),
+            });
+        }
+    }
+
+    let total_services = services.len();
+    let reachable_services = services.iter().filter(|service| service.reachable).count();
+    let degraded_services = services
+        .iter()
+        .filter(|service| service.reachable && service.height_lag.unwrap_or(0) > 0)
+        .count();
+    let unreachable_services = services
+        .iter()
+        .filter(|service| service.status == EndpointStatus::Active && !service.reachable)
+        .count();
+
+    StatusDocument {
+        updated_at: utc_now_string(),
+        summary: StatusSummary {
+            total_services,
+            reachable_services,
+            degraded_services,
+            unreachable_services,
+        },
+        services,
+    }
+}
+
 fn load_registry(path: &str) -> Result<EndpointRegistry, String> {
     let contents =
         fs::read_to_string(path).map_err(|err| format!("failed to read {path}: {err}"))?;
@@ -374,6 +567,26 @@ fn optional_str(value: Option<&str>) -> &str {
     value.unwrap_or("none")
 }
 
+fn unix_time() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+fn utc_now_string() -> String {
+    let output = std::process::Command::new("date")
+        .args(["-u", "+%Y-%m-%dT%H:%M:%SZ"])
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => {
+            String::from_utf8_lossy(&output.stdout).trim().to_string()
+        }
+        _ => "1970-01-01T00:00:00Z".to_string(),
+    }
+}
+
 fn print_help() {
     println!("ssctl");
     println!();
@@ -384,4 +597,5 @@ fn print_help() {
     println!("  ssctl bench <endpoint-url> [--network mainnet|testnet] [--requests n] [--timeout-seconds n] [--json]");
     println!("  ssctl registry validate <path>");
     println!("  ssctl registry probe <path> [--timeout-seconds n] [--json]");
+    println!("  ssctl registry status <path>... [--timeout-seconds n] [--output path]");
 }

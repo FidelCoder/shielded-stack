@@ -30,7 +30,8 @@ This file tracks what has been completed and what remains for the core tooling r
 - Added release builds for `ssctl` and `lwd-exporter`.
 - Added container publishing workflow for `lwd-exporter`.
 - Expanded Grafana dashboard panels for probe failures, latency percentiles, height lag trends, and per-endpoint health.
+- Added automated status document generation from registry probe output.
 
 ## Next
 
-- Add automated status updates from registry probe output.
+- Add real public endpoint records when endpoints are available.
