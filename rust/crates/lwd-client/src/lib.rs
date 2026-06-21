@@ -103,15 +103,17 @@ impl EndpointRegistry {
     }
 
     pub fn validate(&self) -> Result<(), RegistryError> {
-        if self.updated_at.trim().is_empty() {
-            return Err(RegistryError::MissingField("updated_at"));
-        }
+        validate_timestamp(&self.updated_at)?;
 
         let mut ids = std::collections::HashSet::new();
+        let mut urls = std::collections::HashSet::new();
         for record in &self.endpoints {
             validate_record(record)?;
             if !ids.insert(record.id.as_str()) {
                 return Err(RegistryError::DuplicateEndpointId(record.id.clone()));
+            }
+            if !urls.insert(record.url.as_str()) {
+                return Err(RegistryError::DuplicateEndpointUrl(record.url.clone()));
             }
         }
 
@@ -138,13 +140,22 @@ pub enum ProbeError {
 pub enum EndpointError {
     EmptyUrl,
     UnsupportedScheme,
+    MissingHost,
+    MissingPort,
+    ContainsPath,
+    ContainsQuery,
+    ContainsFragment,
 }
 
 #[derive(Debug)]
 pub enum RegistryError {
     Yaml(serde_yaml::Error),
     MissingField(&'static str),
+    InvalidTimestamp(String),
     DuplicateEndpointId(String),
+    DuplicateEndpointUrl(String),
+    DuplicateCapability { id: String, capability: String },
+    InvalidCapability { id: String, capability: String },
     InvalidEndpointId(String),
     InvalidEndpointUrl { id: String, source: EndpointError },
     InvalidRecord { id: String, field: &'static str },
@@ -170,6 +181,15 @@ impl fmt::Display for EndpointError {
             EndpointError::UnsupportedScheme => {
                 write!(f, "endpoint URL must start with http:// or https://")
             }
+            EndpointError::MissingHost => write!(f, "endpoint URL must include a host"),
+            EndpointError::MissingPort => write!(f, "endpoint URL must include an explicit port"),
+            EndpointError::ContainsPath => write!(f, "endpoint URL must not include a path"),
+            EndpointError::ContainsQuery => {
+                write!(f, "endpoint URL must not include a query string")
+            }
+            EndpointError::ContainsFragment => {
+                write!(f, "endpoint URL must not include a fragment")
+            }
         }
     }
 }
@@ -181,7 +201,20 @@ impl fmt::Display for RegistryError {
         match self {
             RegistryError::Yaml(err) => write!(f, "invalid YAML: {err}"),
             RegistryError::MissingField(field) => write!(f, "missing required field: {field}"),
+            RegistryError::InvalidTimestamp(value) => {
+                write!(
+                    f,
+                    "updated_at must be a UTC timestamp like 2026-06-21T00:00:00Z: {value}"
+                )
+            }
             RegistryError::DuplicateEndpointId(id) => write!(f, "duplicate endpoint id: {id}"),
+            RegistryError::DuplicateEndpointUrl(url) => write!(f, "duplicate endpoint URL: {url}"),
+            RegistryError::DuplicateCapability { id, capability } => {
+                write!(f, "duplicate capability for {id}: {capability}")
+            }
+            RegistryError::InvalidCapability { id, capability } => {
+                write!(f, "invalid capability for {id}: {capability}")
+            }
             RegistryError::InvalidEndpointId(id) => write!(f, "invalid endpoint id: {id}"),
             RegistryError::InvalidEndpointUrl { id, source } => {
                 write!(f, "invalid endpoint URL for {id}: {source}")
@@ -270,6 +303,9 @@ fn validate_record(record: &EndpointRecord) -> Result<(), RegistryError> {
             .id
             .chars()
             .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+        || record.id.starts_with('-')
+        || record.id.ends_with('-')
+        || record.id.contains("--")
     {
         return Err(RegistryError::InvalidEndpointId(record.id.clone()));
     }
@@ -288,10 +324,41 @@ fn validate_record(record: &EndpointRecord) -> Result<(), RegistryError> {
         });
     }
 
+    validate_capabilities(record)?;
     validate_endpoint_url(&record.url).map_err(|source| RegistryError::InvalidEndpointUrl {
         id: record.id.clone(),
         source,
     })
+}
+
+fn validate_capabilities(record: &EndpointRecord) -> Result<(), RegistryError> {
+    if record.status == EndpointStatus::Active
+        && !record.capabilities.iter().any(|cap| cap == "grpc")
+    {
+        return Err(RegistryError::InvalidRecord {
+            id: record.id.clone(),
+            field: "capabilities.grpc",
+        });
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    for capability in &record.capabilities {
+        if !matches!(capability.as_str(), "grpc" | "tls" | "tor") {
+            return Err(RegistryError::InvalidCapability {
+                id: record.id.clone(),
+                capability: capability.clone(),
+            });
+        }
+
+        if !seen.insert(capability.as_str()) {
+            return Err(RegistryError::DuplicateCapability {
+                id: record.id.clone(),
+                capability: capability.clone(),
+            });
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_endpoint_url(url: &str) -> Result<(), EndpointError> {
@@ -301,6 +368,49 @@ fn validate_endpoint_url(url: &str) -> Result<(), EndpointError> {
 
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return Err(EndpointError::UnsupportedScheme);
+    }
+
+    let parsed = url
+        .parse::<http::Uri>()
+        .map_err(|_| EndpointError::MissingHost)?;
+    if parsed.host().is_none() {
+        return Err(EndpointError::MissingHost);
+    }
+    if parsed.port_u16().is_none() {
+        return Err(EndpointError::MissingPort);
+    }
+    if parsed.path() != "/" {
+        return Err(EndpointError::ContainsPath);
+    }
+    if parsed.query().is_some() {
+        return Err(EndpointError::ContainsQuery);
+    }
+    if url.contains('#') {
+        return Err(EndpointError::ContainsFragment);
+    }
+
+    Ok(())
+}
+
+fn validate_timestamp(value: &str) -> Result<(), RegistryError> {
+    if value.trim().is_empty() {
+        return Err(RegistryError::MissingField("updated_at"));
+    }
+
+    let valid_shape = value.len() == 20
+        && value.as_bytes()[4] == b'-'
+        && value.as_bytes()[7] == b'-'
+        && value.as_bytes()[10] == b'T'
+        && value.as_bytes()[13] == b':'
+        && value.as_bytes()[16] == b':'
+        && value.as_bytes()[19] == b'Z'
+        && value
+            .chars()
+            .enumerate()
+            .all(|(index, ch)| matches!(index, 4 | 7 | 10 | 13 | 16 | 19) || ch.is_ascii_digit());
+
+    if !valid_shape {
+        return Err(RegistryError::InvalidTimestamp(value.to_string()));
     }
 
     Ok(())
@@ -338,6 +448,18 @@ mod tests {
     }
 
     #[test]
+    fn rejects_endpoint_without_port() {
+        let endpoint = Endpoint::new(Network::Mainnet, "https://example.invalid");
+        assert_eq!(endpoint.validate(), Err(EndpointError::MissingPort));
+    }
+
+    #[test]
+    fn rejects_endpoint_with_path() {
+        let endpoint = Endpoint::new(Network::Mainnet, "https://example.invalid:9067/status");
+        assert_eq!(endpoint.validate(), Err(EndpointError::ContainsPath));
+    }
+
+    #[test]
     fn parses_valid_registry() {
         let registry = EndpointRegistry::from_yaml(
             r#"
@@ -369,16 +491,98 @@ endpoints:
     url: https://one.example.invalid:9067
     region: test
     operator: example
+    capabilities: [grpc, tls]
     status: active
   - id: duplicate
     url: https://two.example.invalid:9067
     region: test
     operator: example
+    capabilities: [grpc, tls]
     status: active
 "#,
         )
         .expect_err("duplicate ids should fail");
 
         assert!(matches!(err, RegistryError::DuplicateEndpointId(_)));
+    }
+
+    #[test]
+    fn rejects_duplicate_registry_urls() {
+        let err = EndpointRegistry::from_yaml(
+            r#"
+network: mainnet
+updated_at: "2026-06-21T00:00:00Z"
+endpoints:
+  - id: one
+    url: https://duplicate.example.invalid:9067
+    region: test
+    operator: example
+    capabilities: [grpc, tls]
+    status: active
+  - id: two
+    url: https://duplicate.example.invalid:9067
+    region: test
+    operator: example
+    capabilities: [grpc, tls]
+    status: active
+"#,
+        )
+        .expect_err("duplicate urls should fail");
+
+        assert!(matches!(err, RegistryError::DuplicateEndpointUrl(_)));
+    }
+
+    #[test]
+    fn rejects_active_endpoint_without_grpc_capability() {
+        let err = EndpointRegistry::from_yaml(
+            r#"
+network: mainnet
+updated_at: "2026-06-21T00:00:00Z"
+endpoints:
+  - id: no-grpc
+    url: https://example.invalid:9067
+    region: test
+    operator: example
+    capabilities: [tls]
+    status: active
+"#,
+        )
+        .expect_err("active endpoints should declare grpc");
+
+        assert!(matches!(err, RegistryError::InvalidRecord { .. }));
+    }
+
+    #[test]
+    fn rejects_invalid_capability() {
+        let err = EndpointRegistry::from_yaml(
+            r#"
+network: mainnet
+updated_at: "2026-06-21T00:00:00Z"
+endpoints:
+  - id: bad-capability
+    url: https://example.invalid:9067
+    region: test
+    operator: example
+    capabilities: [grpc, websocket]
+    status: active
+"#,
+        )
+        .expect_err("invalid capabilities should fail");
+
+        assert!(matches!(err, RegistryError::InvalidCapability { .. }));
+    }
+
+    #[test]
+    fn rejects_invalid_timestamp_shape() {
+        let err = EndpointRegistry::from_yaml(
+            r#"
+network: mainnet
+updated_at: "2026-06-21"
+endpoints: []
+"#,
+        )
+        .expect_err("invalid timestamp should fail");
+
+        assert!(matches!(err, RegistryError::InvalidTimestamp(_)));
     }
 }
