@@ -21,10 +21,12 @@ This file tracks what has been completed and what remains for the core tooling r
 - Added registry-wide active endpoint probes.
 - Added repeated endpoint benchmark summaries.
 - Added JSON and human-readable CLI output.
+- Added vendored light wallet protobuf files.
+- Switched Rust gRPC calls to generated `tonic` client code.
 
 ## Next
 
-- Generate Rust and Go clients directly from the official protobufs.
+- Generate Go clients directly from the official protobufs.
 - Add Go gRPC probing to `lwd-exporter`.
 - Add Prometheus metrics for block height, height lag, latency, and probe failures.
 - Add endpoint registry validation against stricter schema rules.

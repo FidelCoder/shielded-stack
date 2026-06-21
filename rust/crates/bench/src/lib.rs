@@ -120,6 +120,7 @@ mod tests {
             endpoint: endpoint.clone(),
             reachable: false,
             latest_block_height: None,
+            estimated_block_height: None,
             vendor: None,
             version: None,
             consensus_branch_id: None,

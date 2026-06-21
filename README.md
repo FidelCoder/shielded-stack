@@ -5,6 +5,7 @@ Infrastructure tooling for operating reliable Zcash light client services.
 This repository contains the software side of the stack:
 
 - Rust command-line tooling for endpoint checks, registry validation, and benchmarks.
+- Generated Rust gRPC bindings from the official Zcash light wallet protobufs.
 - Go services for long-running probes and Prometheus-compatible health endpoints.
 - Deployment examples for local, Kubernetes, and Helm-based environments.
 - Dashboards and operational docs for service reliability.
@@ -35,6 +36,7 @@ deploy/
   k8s/            Kubernetes manifests.
   helm/           Helm chart.
 dashboards/       Grafana dashboard definitions.
+proto/            Vendored light wallet protocol protobufs.
 docs/             Architecture and operator notes.
 ```
 
@@ -85,6 +87,7 @@ See [ROADMAP.md](ROADMAP.md) for completed setup work and next implementation ta
 
 ## References
 
+- Protocol codegen: [docs/protocol.md](docs/protocol.md)
 - Zcash light client support: https://zcash.readthedocs.io/en/latest/rtd_pages/lightclient_support.html
 - Lightwalletd setup: https://zcash.readthedocs.io/en/latest/rtd_pages/lightwalletd.html
 - Lightwalletd repository: https://github.com/zcash/lightwalletd

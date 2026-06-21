@@ -1,12 +1,15 @@
 use std::fmt;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use rpc::compact_tx_streamer_client::CompactTxStreamerClient;
+use rpc::Empty;
 use serde::{Deserialize, Serialize};
-use tonic::body::BoxBody;
-use tonic::client::Grpc;
-use tonic::codegen::http;
 use tonic::transport::{Channel, ClientTlsConfig, Endpoint as TonicEndpoint};
-use tonic::{Request, Response, Status};
+use tonic::{Request, Status};
+
+pub mod rpc {
+    tonic::include_proto!("cash.z.wallet.sdk.rpc");
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Endpoint {
@@ -55,6 +58,7 @@ pub struct HealthReport {
     pub endpoint: Endpoint,
     pub reachable: bool,
     pub latest_block_height: Option<u64>,
+    pub estimated_block_height: Option<u64>,
     pub vendor: Option<String>,
     pub version: Option<String>,
     pub consensus_branch_id: Option<String>,
@@ -208,7 +212,7 @@ pub async fn probe_lightwalletd(
         client
             .get_lightd_info(Request::new(Empty {}))
             .await
-            .map(Response::into_inner)
+            .map(|response| response.into_inner())
             .map_err(ProbeError::Status)
     })
     .await
@@ -218,6 +222,7 @@ pub async fn probe_lightwalletd(
         endpoint,
         reachable: true,
         latest_block_height: Some(info.block_height),
+        estimated_block_height: Some(info.estimated_height),
         vendor: non_empty(info.vendor),
         version: non_empty(info.version),
         consensus_branch_id: non_empty(info.consensus_branch_id),
@@ -235,6 +240,7 @@ pub async fn probe_or_report(endpoint: Endpoint, options: ProbeOptions) -> Healt
             endpoint,
             reachable: false,
             latest_block_height: None,
+            estimated_block_height: None,
             vendor: None,
             version: None,
             consensus_branch_id: None,
@@ -313,87 +319,6 @@ fn unix_time() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
-}
-
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Empty {}
-
-#[derive(Clone, PartialEq, ::prost::Message, Serialize)]
-pub struct LightdInfo {
-    #[prost(string, tag = "1")]
-    pub version: String,
-    #[prost(string, tag = "2")]
-    pub vendor: String,
-    #[prost(bool, tag = "3")]
-    pub taddr_support: bool,
-    #[prost(string, tag = "4")]
-    pub chain_name: String,
-    #[prost(uint64, tag = "5")]
-    pub sapling_activation_height: u64,
-    #[prost(string, tag = "6")]
-    pub consensus_branch_id: String,
-    #[prost(uint64, tag = "7")]
-    pub block_height: u64,
-    #[prost(string, tag = "8")]
-    pub git_commit: String,
-    #[prost(string, tag = "9")]
-    pub branch: String,
-    #[prost(string, tag = "10")]
-    pub build_date: String,
-    #[prost(string, tag = "11")]
-    pub build_user: String,
-    #[prost(uint64, tag = "12")]
-    pub estimated_height: u64,
-    #[prost(string, tag = "13")]
-    pub zcashd_build: String,
-    #[prost(string, tag = "14")]
-    pub zcashd_subversion: String,
-    #[prost(string, tag = "15")]
-    pub donation_address: String,
-    #[prost(string, tag = "16")]
-    pub upgrade_name: String,
-    #[prost(uint64, tag = "17")]
-    pub upgrade_height: u64,
-    #[prost(string, tag = "18")]
-    pub lightwallet_protocol_version: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct CompactTxStreamerClient<T> {
-    inner: Grpc<T>,
-}
-
-impl CompactTxStreamerClient<Channel> {
-    pub fn new(inner: Channel) -> Self {
-        Self {
-            inner: Grpc::new(inner),
-        }
-    }
-}
-
-impl<T> CompactTxStreamerClient<T>
-where
-    T: tonic::client::GrpcService<BoxBody>,
-    T::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
-    T::ResponseBody: tonic::codegen::Body<Data = bytes::Bytes> + Send + 'static,
-    <T::ResponseBody as tonic::codegen::Body>::Error:
-        Into<Box<dyn std::error::Error + Send + Sync>> + Send,
-{
-    pub async fn get_lightd_info(
-        &mut self,
-        request: impl tonic::IntoRequest<Empty>,
-    ) -> Result<Response<LightdInfo>, Status> {
-        self.inner
-            .ready()
-            .await
-            .map_err(|err| Status::unknown(format!("service was not ready: {}", err.into())))?;
-
-        let codec = tonic::codec::ProstCodec::default();
-        let path = http::uri::PathAndQuery::from_static(
-            "/cash.z.wallet.sdk.rpc.CompactTxStreamer/GetLightdInfo",
-        );
-        self.inner.unary(request.into_request(), path, codec).await
-    }
 }
 
 #[cfg(test)]

@@ -11,6 +11,10 @@
 - ZIP 307: https://zips.z.cash/zip-0307
 - Wallet threat model: https://zcash.readthedocs.io/en/latest/rtd_pages/wallet_threat_model.html
 
+## Protocol Files
+
+The Rust client generates bindings from the vendored protocol files under `proto/walletrpc/`. See [protocol.md](protocol.md) for the codegen flow.
+
 ## MVP Probe
 
 The first supported runtime check calls:
