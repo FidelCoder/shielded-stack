@@ -2,8 +2,28 @@
   "title": "Lightwalletd Overview",
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "panels": [
+    {
+      "type": "stat",
+      "title": "Configured Endpoints",
+      "targets": [
+        {
+          "expr": "shielded_stack_configured_endpoints"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      }
+    },
     {
       "type": "stat",
       "title": "Reachable Endpoints",
@@ -13,9 +33,24 @@
         }
       ],
       "gridPos": {
-        "h": 6,
+        "h": 5,
         "w": 6,
-        "x": 0,
+        "x": 6,
+        "y": 0
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Probe Failures",
+      "targets": [
+        {
+          "expr": "sum(1 - shielded_stack_endpoint_reachable)"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
         "y": 0
       }
     },
@@ -28,10 +63,40 @@
         }
       ],
       "gridPos": {
-        "h": 6,
+        "h": 5,
         "w": 6,
-        "x": 6,
+        "x": 18,
         "y": 0
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Endpoint Reachability",
+      "targets": [
+        {
+          "expr": "shielded_stack_endpoint_reachable"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Probe Failures Over Time",
+      "targets": [
+        {
+          "expr": "1 - shielded_stack_endpoint_reachable"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
       }
     },
     {
@@ -45,26 +110,88 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
-        "y": 0
+        "x": 0,
+        "y": 13
       }
     },
     {
       "type": "timeseries",
-      "title": "Reported Block Height",
+      "title": "Latency Percentiles",
       "targets": [
         {
-          "expr": "shielded_stack_endpoint_block_height"
+          "expr": "quantile_over_time(0.50, shielded_stack_endpoint_latency_seconds[15m])",
+          "legendFormat": "p50 {{endpoint}}"
         },
         {
-          "expr": "shielded_stack_endpoint_estimated_height"
+          "expr": "quantile_over_time(0.95, shielded_stack_endpoint_latency_seconds[15m])",
+          "legendFormat": "p95 {{endpoint}}"
+        },
+        {
+          "expr": "quantile_over_time(0.99, shielded_stack_endpoint_latency_seconds[15m])",
+          "legendFormat": "p99 {{endpoint}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Height Lag Trend",
+      "targets": [
+        {
+          "expr": "shielded_stack_endpoint_height_lag"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Reported vs Estimated Height",
+      "targets": [
+        {
+          "expr": "shielded_stack_endpoint_block_height",
+          "legendFormat": "reported {{endpoint}}"
+        },
+        {
+          "expr": "shielded_stack_endpoint_estimated_height",
+          "legendFormat": "estimated {{endpoint}}"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      }
+    },
+    {
+      "type": "table",
+      "title": "Per-Endpoint Health",
+      "targets": [
+        {
+          "expr": "shielded_stack_endpoint_reachable"
+        },
+        {
+          "expr": "shielded_stack_endpoint_latency_seconds"
+        },
+        {
+          "expr": "shielded_stack_endpoint_height_lag"
         }
       ],
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 29
       }
     }
   ]

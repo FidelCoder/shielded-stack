@@ -29,8 +29,8 @@ This file tracks what has been completed and what remains for the core tooling r
 - Added stricter endpoint registry validation for timestamps, URLs, duplicate IDs, duplicate URLs, endpoint IDs, and capabilities.
 - Added release builds for `ssctl` and `lwd-exporter`.
 - Added container publishing workflow for `lwd-exporter`.
+- Expanded Grafana dashboard panels for probe failures, latency percentiles, height lag trends, and per-endpoint health.
 
 ## Next
 
-- Expand dashboard panels for probe failures and latency percentiles.
 - Add automated status updates from registry probe output.
