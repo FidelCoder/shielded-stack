@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-linux:
+    name: Build Linux release artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build ssctl
+        run: cargo build --release --manifest-path rust/Cargo.toml -p ssctl
+
+      - name: Build lwd-exporter
+        run: |
+          mkdir -p target/release
+          go build -trimpath -ldflags "-s -w" -o target/release/lwd-exporter-linux-amd64 ./go/cmd/lwd-exporter
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp rust/target/release/ssctl dist/ssctl-linux-amd64
+          cp target/release/lwd-exporter-linux-amd64 dist/lwd-exporter-linux-amd64
+          chmod +x dist/ssctl-linux-amd64 dist/lwd-exporter-linux-amd64
+          tar -C dist -czf dist/ssctl-linux-amd64.tar.gz ssctl-linux-amd64
+          tar -C dist -czf dist/lwd-exporter-linux-amd64.tar.gz lwd-exporter-linux-amd64
+          sha256sum dist/*.tar.gz > dist/SHA256SUMS
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: shielded-stack-linux-amd64
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS

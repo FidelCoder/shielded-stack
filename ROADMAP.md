@@ -27,10 +27,10 @@ This file tracks what has been completed and what remains for the core tooling r
 - Switched `lwd-exporter` to gRPC `GetLightdInfo` probes.
 - Added exporter metrics for reported height, estimated height, height lag, reachability, and latency.
 - Added stricter endpoint registry validation for timestamps, URLs, duplicate IDs, duplicate URLs, endpoint IDs, and capabilities.
+- Added release builds for `ssctl` and `lwd-exporter`.
 
 ## Next
 
-- Add release builds for `ssctl` and `lwd-exporter`.
 - Add container publishing workflow.
 - Expand dashboard panels for probe failures and latency percentiles.
 - Add automated status updates from registry probe output.
