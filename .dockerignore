@@ -1,0 +1,12 @@
+.git
+.github
+rust/target
+target
+bin
+dist
+coverage
+*.log
+*.tmp
+.env
+.env.*
+.DS_Store

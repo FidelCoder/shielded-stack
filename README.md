@@ -90,6 +90,7 @@ See [ROADMAP.md](ROADMAP.md) for completed setup work and next implementation ta
 - Protocol codegen: [docs/protocol.md](docs/protocol.md)
 - Registry validation: [docs/registry-validation.md](docs/registry-validation.md)
 - Releases: [docs/releases.md](docs/releases.md)
+- Containers: [docs/containers.md](docs/containers.md)
 - Zcash light client support: https://zcash.readthedocs.io/en/latest/rtd_pages/lightclient_support.html
 - Lightwalletd setup: https://zcash.readthedocs.io/en/latest/rtd_pages/lightwalletd.html
 - Lightwalletd repository: https://github.com/zcash/lightwalletd

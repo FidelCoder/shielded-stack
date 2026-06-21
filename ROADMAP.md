@@ -28,9 +28,9 @@ This file tracks what has been completed and what remains for the core tooling r
 - Added exporter metrics for reported height, estimated height, height lag, reachability, and latency.
 - Added stricter endpoint registry validation for timestamps, URLs, duplicate IDs, duplicate URLs, endpoint IDs, and capabilities.
 - Added release builds for `ssctl` and `lwd-exporter`.
+- Added container publishing workflow for `lwd-exporter`.
 
 ## Next
 
-- Add container publishing workflow.
 - Expand dashboard panels for probe failures and latency percentiles.
 - Add automated status updates from registry probe output.
