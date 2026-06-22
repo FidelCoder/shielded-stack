@@ -10,6 +10,12 @@ This repository contains the software side of the stack:
 - Deployment examples for local, Kubernetes, and Helm-based environments.
 - Dashboards and operational docs for service reliability.
 
+## Practical Use
+
+This stack is meant to make real `lightwalletd` endpoint health public and machine-readable. Wallets, service backends, operators, and monitoring systems can use it to avoid stale or unreachable endpoints.
+
+See [docs/practical-use.md](docs/practical-use.md) for the adoption flow and real-world testing path.
+
 ## MVP Features
 
 - Probe a `lightwalletd` endpoint through the real gRPC `GetLightdInfo` method from Rust and Go.
